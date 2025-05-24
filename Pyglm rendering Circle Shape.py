@@ -2,6 +2,7 @@ from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
 from OpenGL.GL.shaders import compileProgram, compileShader
+from OpenGL.GLUT import GLUT_BITMAP_HELVETICA_18
 import numpy as np
 import glm  # For matrix operations
 
@@ -222,6 +223,7 @@ sphere_vbo = None
 sphere_ebo = None
 indices = None
 show_three_spheres = False
+background_color = [0.0, 0.0, 0.0, 1.0]  # Start with black background
 
 def create_sphere(radius, sectors, stacks):
     vertices = []
@@ -328,8 +330,9 @@ def set_uniforms_for_shader(shader_program):
         glUniform3f(glGetUniformLocation(shader_program, "LightPosition"), 0.0, 0.0, 4.0)
 
 def display():
-    global current_shader_program, sphere_vao, indices, show_three_spheres
+    global current_shader_program, sphere_vao, indices, show_three_spheres, background_color
 
+    glClearColor(*background_color)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
     if show_three_spheres:
@@ -337,6 +340,7 @@ def display():
         glUseProgram(shader_program_a)
         set_uniforms_for_shader(shader_program_a)
         model = glm.translate(glm.mat4(1.0), glm.vec3(-1.0, 0.0, 0.0))
+        model = glm.scale(model, glm.vec3(0.7, 0.7, 0.7))  # Scale down
         glUniformMatrix4fv(glGetUniformLocation(shader_program_a, "model"), 1, GL_FALSE, glm.value_ptr(model))
         glBindVertexArray(sphere_vao)
         glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, None)
@@ -345,6 +349,7 @@ def display():
         glUseProgram(shader_program_b)
         set_uniforms_for_shader(shader_program_b)
         model = glm.translate(glm.mat4(1.0), glm.vec3(0.0, 0.0, 0.0))
+        model = glm.scale(model, glm.vec3(0.7, 0.7, 0.7))  # Scale down
         glUniformMatrix4fv(glGetUniformLocation(shader_program_b, "model"), 1, GL_FALSE, glm.value_ptr(model))
         glBindVertexArray(sphere_vao)
         glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, None)
@@ -353,6 +358,7 @@ def display():
         glUseProgram(brick_shader_program)
         set_uniforms_for_shader(brick_shader_program)
         model = glm.translate(glm.mat4(1.0), glm.vec3(1.0, 0.0, 0.0))
+        model = glm.scale(model, glm.vec3(0.7, 0.7, 0.7))  # Scale down
         glUniformMatrix4fv(glGetUniformLocation(brick_shader_program, "model"), 1, GL_FALSE, glm.value_ptr(model))
         glBindVertexArray(sphere_vao)
         glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, None)
@@ -364,25 +370,79 @@ def display():
         glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, None)
 
     glBindVertexArray(0)
+    render_mode_label()
     glutSwapBuffers()
 
 def reshape(width, height):
     glViewport(0, 0, width, height)
 
 def keyboard(key, x, y):
-    global current_shader_program, show_three_spheres
-    if key == b'a':
+    global current_shader_program, show_three_spheres, background_color
+    if key == b'1':
         current_shader_program = shader_program_a
         show_three_spheres = False
-    elif key == b'b':
+    elif key == b'2':
         current_shader_program = shader_program_b
         show_three_spheres = False
-    elif key == b'c':
+    elif key == b'3':
         current_shader_program = brick_shader_program
         show_three_spheres = False
-    elif key == b'd':
+    elif key == b'4':
         show_three_spheres = True
+    elif key == b'd' or key == b'D':
+        # Toggle background color between black and white
+        if background_color[0] == 0.0:
+            background_color = [1.0, 1.0, 1.0, 1.0]
+        else:
+            background_color = [0.0, 0.0, 0.0, 1.0]
     glutPostRedisplay()
+
+def render_mode_label():
+    glUseProgram(0)
+    # Use window coordinates for robust text placement if available
+    try:
+        glWindowPos2f(10, 570)
+        use_windowpos = True
+    except Exception:
+        use_windowpos = False
+    if not use_windowpos:
+        glMatrixMode(GL_PROJECTION)
+        glPushMatrix()
+        glLoadIdentity()
+        gluOrtho2D(0, 800, 0, 600)
+        glMatrixMode(GL_MODELVIEW)
+        glPushMatrix()
+        glLoadIdentity()
+        glDisable(GL_DEPTH_TEST)
+
+    # Switch text color based on background color
+    if background_color[0] >= 0.5:
+        glColor3f(0.0, 0.0, 0.0)  # Black text on light bg
+    else:
+        glColor3f(1.0, 1.0, 1.0)  # White text on dark bg
+
+    if show_three_spheres:
+        label = b"All Modes"
+    elif current_shader_program == shader_program_a:
+        label = b"Normal Mode"
+    elif current_shader_program == shader_program_b:
+        label = b"Toy Mode"
+    elif current_shader_program == brick_shader_program:
+        label = b"Brick Mode"
+    else:
+        label = b"Unknown Mode"
+
+    if not use_windowpos:
+        glRasterPos2f(10, 570)
+    for c in label:
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c)
+
+    if not use_windowpos:
+        glEnable(GL_DEPTH_TEST)
+        glPopMatrix()
+        glMatrixMode(GL_PROJECTION)
+        glPopMatrix()
+        glMatrixMode(GL_MODELVIEW)
 
 if __name__ == "__main__":
     glutInit()
